@@ -6,6 +6,7 @@ import { Camera, Search, Upload } from "lucide-react";
 import { Button } from "./ui/button";
 import { toast } from "sonner";
 import { useDropzone } from "react-dropzone";
+import { useRouter } from "next/navigation";
 
 const HomeSearch = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -13,45 +14,62 @@ const HomeSearch = () => {
   const [imagePreview, setImagePreview] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isImageSearchActive, setIsImageSearchActive] = useState(false);
-  const handleTextSearch = () => {};
-  const handleImageSearch = () => {};
+  const router = useRouter();
+
+  const handleTextSubmit = (e) => {
+    e.preventDefault();
+    if (!searchTerm) {
+      toast.error("Please enter a search term");
+      return;
+    }
+    router.push(`/cars/search=${encodeURIComponent(searchTerm)}`);
+  };
+  const handleImageSearch = async (e) => {
+    e.preventDefault();
+    if (!searchImage) {
+      toast.error("Please upload an image first");
+      return;
+    }
+    await processImageFn(searchImage);
+  };
 
   const onDrop = (acceptedFiles) => {
     const file = acceptedFiles[0];
 
-    if(file){
-      if(file > 5 * 1024 * 1024){
-        toast.error("Image size must be less that 5MB")
+    if (file) {
+      if (file > 5 * 1024 * 1024) {
+        toast.error("Image size must be less that 5MB");
         return;
       }
-      setIsUploading(true)
-      setSearchImage(file)
+      setIsUploading(true);
+      setSearchImage(file);
 
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImagePreview(reader.result)
-        setIsUploading(false)
-        toast.success("Image uploaded successfully")
-      }
+        setImagePreview(reader.result);
+        setIsUploading(false);
+        toast.success("Image uploaded successfully");
+      };
       reader.onerror = () => {
-        setIsUploading(false)
-        toast.error("Failed to read the image")
-      }
+        setIsUploading(false);
+        toast.error("Failed to read the image");
+      };
 
       reader.readAsDataURL(file);
     }
   };
-  const { getRootProps, getInputProps, isDragActive, isDragReject  } = useDropzone({
-    onDrop,
-    accept: {
-      "image/*": [".jpeg", ".jpg", "png"],
-    },
-    maxFiles: 1,
-  });
+  const { getRootProps, getInputProps, isDragActive, isDragReject } =
+    useDropzone({
+      onDrop,
+      accept: {
+        "image/*": [".jpeg", ".jpg", "png"],
+      },
+      maxFiles: 1,
+    });
 
   return (
     <div>
-      <form onSubmit={handleTextSearch}>
+      <form onSubmit={handleTextSubmit}>
         <div className="relative flex items-center">
           <Search className="absolute left-3 w-5 h-5" />
           <Input
@@ -93,6 +111,7 @@ const HomeSearch = () => {
                   />
                   <Button
                     variant="outline"
+                    className="cursor-pointer"
                     onClick={() => {
                       setSearchImage(null);
                       setImagePreview("");
@@ -123,24 +142,15 @@ const HomeSearch = () => {
               )}
             </div>
 
-            {/* {imagePreview && (
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isUploading || isProcessing}
-              >
-                {isUploading
-                  ? "Uploading..."
-                  : isProcessing
-                  ? "Analyzing image..."
-                  : "Search with this Image"}
+            {imagePreview && (
+              <Button type="submit" className="w-full mt-2 cursor-pointer" disabled={isUploading}>
+                {isUploading ? "Uploading..." : "Search with this Image"}
               </Button>
-            )} */}
+            )}
           </form>
         </div>
       )}
     </div>
   );
-
 };
 export default HomeSearch;
