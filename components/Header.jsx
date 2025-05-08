@@ -10,7 +10,7 @@ import Link from "next/link";
 
 import React from "react";
 import { Button } from "./ui/button";
-import { CarFront, Heart, Layout } from "lucide-react";
+import { ArrowLeft, CarFront, Heart, Layout } from "lucide-react";
 import { checkUser } from "@/lib/checkUser";
 
 const Header = async ({ isAdminPage = false }) => {
