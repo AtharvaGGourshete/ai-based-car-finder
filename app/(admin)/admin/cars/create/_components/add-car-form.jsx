@@ -31,6 +31,9 @@ import { Loader, Loader2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
+import useFetch from "@/hooks/use-fetch";
+import { addCar } from "@/actions/cars";
+import { add } from "date-fns";
 
 const fuelTypes = ["Petrol", "Diesel", "Electric", "Hybrid", "Plug-in Hybrid"];
 const transmissions = ["Automatic", "Manual", "Semi-Automatic"];
@@ -44,35 +47,39 @@ const bodyTypes = [
   "Pickup",
 ];
 const carStatuses = ["AVAILABLE", "UNAVAILABLE", "SOLD"];
+const carFormSchema = z.object({
+  make: z.string().min(1, "Make is required"),
+  model: z.string().min(1, "Model is required"),
+  year: z.string().refine((val) => {
+    const year = parseInt(val);
+    return (
+      !isNaN(year) && year >= 1900 && year <= new Date().getFullYear() + 1
+    );
+  }, "Valid year required"),
+  price: z.string().min(1, "Price is required"),
+  mileage: z.string().min(1, "Mileage is required"),
+  color: z.string().min(1, "Color is required"),
+  fuelType: z.string().min(1, "Fuel type is required"),
+  transmission: z.string().min(1, "Transmission is required"),
+  bodyType: z.string().min(1, "Body type is required"),
+  seats: z.string().optional(),
+  description: z
+    .string()
+    .min(10, "Description must be at least 10 characters"),
+  status: z.enum(["AVAILABLE", "UNAVAILABLE", "SOLD"]),
+  featured: z.boolean().default(false),
+});
 
-const AddCarForm = () => {
-  const [activeTab, setActiveTab] = useState("ai");
+export const AddCarForm = () => {
+  const router = useRouter();
+  const [imagePreview, setImagePreview] = useState(null);
   const [uploadedImages, setUploadedImages] = useState([]);
+  const [uploadedAiImage, setUploadedAiImage] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [activeTab, setActiveTab] = useState("ai");
   const [imageError, setImageError] = useState("");
 
-  const carFormSchema = z.object({
-    make: z.string().min(1, "Make is required"),
-    model: z.string().min(1, "Model is required"),
-    year: z.string().refine((val) => {
-      const year = parseInt(val);
-      return (
-        !isNaN(year) && year >= 1900 && year <= newDate().getFullYear() + 1
-      );
-    }, "Valid year required"),
-    price: z.string().min(1, "Price is required"),
-    mileage: z.string().min(1, "Mileage is required"),
-    color: z.string().min(1, "Color is required"),
-    fuelType: z.string().min(1, "Fuel type is required"),
-    transmission: z.string().min(1, "Transmission is required"),
-    bodyType: z.string().min(1, "Body type is required"),
-    seats: z.string().optional(),
-    description: z
-      .string()
-      .min(10, "Description must be at least 10 characters"),
-    status: z.enum(["AVAILABLE", "UNAVAILABLE", "SOLD"]),
-    featured: z.boolean().default(false),
-  });
-
+  // Initialize form with react-hook-form and zod
   const {
     register,
     setValue,
@@ -99,15 +106,110 @@ const AddCarForm = () => {
     },
   });
 
-  const onSubmit = async (data) => {
-    // Check if images are uploaded
-    if (uploadedImages.length === 0) {
-      setImageError("Please upload at least one image");
+  // Custom hooks for API calls
+  const {
+    loading: addCarLoading,
+    fn: addCarFn,
+    data: addCarResult,
+  } = useFetch(addCar);
+
+  // const {
+  //   loading: processImageLoading,
+  //   fn: processImageFn,
+  //   data: processImageResult,
+  //   error: processImageError,
+  // } = useFetch(processCarImageWithAI);
+
+  // Handle successful car addition
+  useEffect(() => {
+    if (addCarResult?.success) {
+      toast.success("Car added successfully");
+      router.push("/admin/cars");
+    }
+  }, [addCarResult, router]);
+
+  // useEffect(() => {
+  //   if (processImageError) {
+  //     toast.error(processImageError.message || "Failed to upload car");
+  //   }
+  // }, [processImageError]);
+
+  // Handle successful AI processing
+  // useEffect(() => {
+  //   if (processImageResult?.success) {
+  //     const carDetails = processImageResult.data;
+
+  //     // Update form with AI results
+  //     setValue("make", carDetails.make);
+  //     setValue("model", carDetails.model);
+  //     setValue("year", carDetails.year.toString());
+  //     setValue("color", carDetails.color);
+  //     setValue("bodyType", carDetails.bodyType);
+  //     setValue("fuelType", carDetails.fuelType);
+  //     setValue("price", carDetails.price);
+  //     setValue("mileage", carDetails.mileage);
+  //     setValue("transmission", carDetails.transmission);
+  //     setValue("description", carDetails.description);
+
+  //     // Add the image to the uploaded images
+  //     const reader = new FileReader();
+  //     reader.onload = (e) => {
+  //       setUploadedImages((prev) => [...prev, e.target.result]);
+  //     };
+  //     reader.readAsDataURL(uploadedAiImage);
+
+  //     toast.success("Successfully extracted car details", {
+  //       description: `Detected ${carDetails.year} ${carDetails.make} ${
+  //         carDetails.model
+  //       } with ${Math.round(carDetails.confidence * 100)}% confidence`,
+  //     });
+
+  //     // Switch to manual tab for the user to review and fill in missing details
+  //     setActiveTab("manual");
+  //   }
+  // }, [processImageResult, setValue, uploadedAiImage]);
+
+  // Process image with Gemini AI
+  // const processWithAI = async () => {
+  //   if (!uploadedAiImage) {
+  //     toast.error("Please upload an image first");
+  //     return;
+  //   }
+
+  //   await processImageFn(uploadedAiImage);
+  // };
+
+  // Handle AI image upload with Dropzone
+  const onAiDrop = useCallback((acceptedFiles) => {
+    const file = acceptedFiles[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size should be less than 5MB");
       return;
     }
-  };
 
-  const onMultiImagesDrop = (acceptedFiles) => {
+    setUploadedAiImage(file);
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setImagePreview(e.target.result);
+    };
+    reader.readAsDataURL(file);
+  }, []);
+
+  const { getRootProps: getAiRootProps, getInputProps: getAiInputProps } =
+    useDropzone({
+      onDrop: onAiDrop,
+      accept: {
+        "image/*": [".jpeg", ".jpg", ".png", ".webp"],
+      },
+      maxFiles: 1,
+      multiple: false,
+    });
+
+  // Handle multiple image uploads with Dropzone
+  const onMultiImagesDrop = useCallback((acceptedFiles) => {
     const validFiles = acceptedFiles.filter((file) => {
       if (file.size > 5 * 1024 * 1024) {
         toast.error(`${file.name} exceeds 5MB limit and will be skipped`);
@@ -118,35 +220,75 @@ const AddCarForm = () => {
 
     if (validFiles.length === 0) return;
 
-    const newImages = [];
-    validFiles.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        newImages.push(e.target.result);
+    // Simulate upload progress
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += 10;
+      setUploadProgress(progress);
 
-        if (newImages.length === validFiles.length) {
-          setUploadedImages((prev) => [...prev, ...newImages]);
-          setImageError("");
-          toast.success(`Successfully uploaded ${validFiles.length} images`);
-        }
-      };
+      if (progress >= 100) {
+        clearInterval(interval);
 
-      reader.readAsDataURL(file);
-    });
-  };
+        // Process the images
+        const newImages = [];
+        validFiles.forEach((file) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            newImages.push(e.target.result);
+
+            // When all images are processed
+            if (newImages.length === validFiles.length) {
+              setUploadedImages((prev) => [...prev, ...newImages]);
+              setUploadProgress(0);
+              setImageError("");
+              toast.success(
+                `Successfully uploaded ${validFiles.length} images`
+              );
+            }
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+    }, 200);
+  }, []);
+
   const {
     getRootProps: getMultiImageRootProps,
     getInputProps: getMultiImageInputProps,
   } = useDropzone({
     onDrop: onMultiImagesDrop,
     accept: {
-      "image/*": [".jpeg", ".jpg", "png", ".webp"],
+      "image/*": [".jpeg", ".jpg", ".png", ".webp"],
     },
     multiple: true,
   });
 
+  // Remove image from upload preview
   const removeImage = (index) => {
     setUploadedImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+   const onSubmit = async (data) => {
+    // Check if images are uploaded
+    if (uploadedImages.length === 0) {
+      setImageError("Please upload at least one image");
+      return;
+    }
+
+    // Prepare data for server action
+    const carData = {
+      ...data,
+      year: parseInt(data.year),
+      price: parseFloat(data.price),
+      mileage: parseInt(data.mileage),
+      seats: data.seats ? parseInt(data.seats) : null,
+    };
+
+    // Call the addCar function with our useFetch hook
+    await addCarFn({
+      carData,
+      images: uploadedImages,
+    });
   };
 
   return (
@@ -438,12 +580,12 @@ const AddCarForm = () => {
                           <input {...getMultiImageInputProps()} />
                           <div className="flex flex-col items-center">
                             <Upload className="h-12 w-12 text-gray-400 mb-2" />
-                            <p className="text-gray-500 mb-2">
-                              Drag & drop a car image or click to select
-                            </p>
-                            <p className="text-gray-400 text-xs mt-1">
-                              Supports: JPG, PNG (max 5MB)
-                            </p>
+                            <span className="text-sm text-gray-600">
+                          Drag & drop or click to upload multiple images
+                        </span>
+                        <span className="text-xs text-gray-500 mt-1">
+                          (JPG, PNG, WebP, max 5MB each)
+                        </span>
                           </div>
                         </div>
                       </div>
@@ -482,11 +624,11 @@ const AddCarForm = () => {
                     </div>
                   )}
                   <Button
-                  type="submit"
-                  className="w-full md:w-auto"
-                  disabled={true}
-                >
-                    {true ? (
+                    type="submit"
+                    className="w-full md:w-auto"
+                    disabled={addCarLoading}
+                  >
+                    {addCarLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Adding Car...

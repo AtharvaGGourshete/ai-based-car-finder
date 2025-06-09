@@ -2,8 +2,10 @@
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { revalidatePath } from "next/cache";
+import { v4 as uuidv4 } from "uuid";
+import { createClient } from "@/lib/supabase";
 
 async function fileToBase64(file) {
   const bytes = await file.arrayBuffer();
@@ -109,7 +111,7 @@ export async function processCarImageWithAI(file) {
 export async function addCar({ carData, images }) {
   try {
     const { userId } = await auth();
-    if (!userId) throw new Error("Uauthorized!!");
+    if (!userId) throw new Error("Unauthorized");
 
     const user = await db.user.findUnique({
       where: { clerkUserId: userId },
@@ -117,31 +119,39 @@ export async function addCar({ carData, images }) {
 
     if (!user) throw new Error("User not found");
 
+    // Create a unique folder name for this car's images
     const carId = uuidv4();
     const folderPath = `cars/${carId}`;
 
+    // Initialize Supabase client for server-side operations
     const cookieStore = await cookies();
     const supabase = createClient(cookieStore);
 
+    // Upload all images to Supabase storage
     const imageUrls = [];
 
     for (let i = 0; i < images.length; i++) {
       const base64Data = images[i];
 
+      // Skip if image data is not valid
       if (!base64Data || !base64Data.startsWith("data:image/")) {
         console.warn("Skipping invalid image data");
         continue;
       }
 
+      // Extract the base64 part (remove the data:image/xyz;base64, prefix)
       const base64 = base64Data.split(",")[1];
       const imageBuffer = Buffer.from(base64, "base64");
 
+      // Determine file extension from the data URL
       const mimeMatch = base64Data.match(/data:image\/([a-zA-Z0-9]+);/);
       const fileExtension = mimeMatch ? mimeMatch[1] : "jpeg";
 
+      // Create filename
       const fileName = `image-${Date.now()}-${i}.${fileExtension}`;
       const filePath = `${folderPath}/${fileName}`;
 
+      // Upload the file buffer directly
       const { data, error } = await supabase.storage
         .from("car-images")
         .upload(filePath, imageBuffer, {
@@ -153,7 +163,9 @@ export async function addCar({ carData, images }) {
         throw new Error(`Failed to upload image: ${error.message}`);
       }
 
-      const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/car-images/${filePath}`;
+      // Get the public URL for the uploaded file
+      const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/car-images/${filePath}`; // disable cache in config
+
       imageUrls.push(publicUrl);
     }
 
@@ -161,6 +173,7 @@ export async function addCar({ carData, images }) {
       throw new Error("No valid images were uploaded");
     }
 
+    // Add the car to the database
     const car = await db.car.create({
       data: {
         id: carId, // Use the same ID we used for the folder
@@ -180,6 +193,10 @@ export async function addCar({ carData, images }) {
         images: imageUrls, // Store the array of image URLs
       },
     });
+
+    // Revalidate the cars list page
+    revalidatePath("/admin/cars");
+
     return {
       success: true,
     };
@@ -187,3 +204,4 @@ export async function addCar({ carData, images }) {
     throw new Error("Error adding car:" + error.message);
   }
 }
+
