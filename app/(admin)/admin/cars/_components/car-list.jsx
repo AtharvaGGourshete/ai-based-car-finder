@@ -4,7 +4,14 @@ import { deleteCar, getCars, updateCarStatus } from "@/actions/cars";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,6 +45,8 @@ import {
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
+import { toast } from "sonner";
+
 
 const CarsList = () => {
   const [search, setSearch] = useState("");
@@ -83,7 +92,6 @@ const CarsList = () => {
       toast.error("Failed to update car");
     }
   }, [carsError, deleteError, updateError]);
-
 
   useEffect(() => {
     if (deleteResult?.success) {
@@ -169,7 +177,7 @@ const CarsList = () => {
         </form>
       </div>
 
-      {/*Car Table*/}
+      {/* Car Table */}
       <Card>
         <CardContent className="p-0">
           {loadingCars && !carsData ? (
@@ -255,22 +263,14 @@ const CarsList = () => {
                               <DropdownMenuSeparator />
                               <DropdownMenuLabel>Status</DropdownMenuLabel>
                               <DropdownMenuItem
-                                onClick={() =>
-                                  handleStatusUpdate(car, "AVAILABLE")
-                                }
-                                disabled={
-                                  car.status === "AVAILABLE" || updatingCar
-                                }
+                                onClick={() => handleStatusUpdate(car, "AVAILABLE")}
+                                disabled={car.status === "AVAILABLE" || updatingCar}
                               >
                                 Set Available
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                onClick={() =>
-                                  handleStatusUpdate(car, "UNAVAILABLE")
-                                }
-                                disabled={
-                                  car.status === "UNAVAILABLE" || updatingCar
-                                }
+                                onClick={() => handleStatusUpdate(car, "UNAVAILABLE")}
+                                disabled={car.status === "UNAVAILABLE" || updatingCar}
                               >
                                 Set Unavailable
                               </DropdownMenuItem>
@@ -283,10 +283,10 @@ const CarsList = () => {
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 className="text-red-600"
-                                // onClick={() => {
-                                //   setCarToDelete(car);
-                                //   setDeleteDialogOpen(true);
-                                // }}
+                                onClick={() => {
+                                  setCarToDelete(car);
+                                  setDeleteDialogOpen(true);
+                                }}
                               >
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Delete
