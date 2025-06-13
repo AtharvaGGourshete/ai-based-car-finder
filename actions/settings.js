@@ -145,33 +145,33 @@ export async function saveWorkingHours(workingHours) {
 }
 
 export async function getUsers() {
-    try {
-        const { userId } = await auth();
-        if (!userId) throw new Error("Unauthorized");
-        
-        const user = await db.user.findUnique({
-            where: { clerkUserId: userId },
-        });
-        
-        if (!user || user.role !== "ADMIN"){
-            throw new Error("Unauthorized: Admin access required");
-        }
+  try {
+    const { userId } = await auth();
+    if (!userId) throw new Error("Unauthorized");
 
-        const users = await db.user.findMany({
-            orderBy: { createdAt: "desc" }
-        })
+    const adminUser = await db.user.findUnique({
+      where: { clerkUserId: userId },
+    });
 
-        return {
-            success: true,
-            data: {
-                ...user,
-                createdAt: user.createdAt?.toISOString(),
-                updatedAt: user.updatedAt?.toISOString(),
-            }
-        }
-    } catch (error) {
-        throw new Error("Error fetching users:" + error.message);
+    if (!adminUser || adminUser.role !== "ADMIN") {
+      throw new Error("Unauthorized: Admin access required");
     }
+
+    const users = await db.user.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+
+    return {
+      success: true,
+      data: users.map((user) => ({
+        ...user,
+        createdAt: user.createdAt.toISOString(),
+        updatedAt: user.updatedAt.toISOString(),
+      })),
+    };
+  } catch (error) {
+    throw new Error("Error fetching users:" + error.message);
+  }
 }
 
 export async function updateUserRole(userId, role) {

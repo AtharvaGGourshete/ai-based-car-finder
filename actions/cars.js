@@ -122,7 +122,7 @@ export async function processCarImageWithAI(file) {
     }
   } catch (error) {
     console.error();
-    throw new Error("Gemini API error:" + error.message);
+    console.error("Gemini API error:" + error.message);
   }
 }
 
