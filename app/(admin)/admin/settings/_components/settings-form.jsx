@@ -1,7 +1,16 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Clock, Loader2, Shield, Save, Search, Users } from "lucide-react";
+import {
+  Clock,
+  Loader2,
+  Shield,
+  Save,
+  Search,
+  Users,
+  UserX,
+  CheckCircle,
+} from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import useFetch from "@/hooks/use-fetch";
 import {
@@ -30,6 +39,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const DAYS = [
   { value: "MONDAY", label: "Monday" },
@@ -51,7 +69,10 @@ const SettingsForm = () => {
     }))
   );
   const [userSearch, setUserSearch] = useState("");
-  const [isInitialized, setIsInitialized] = useState(false); // Flag to track initialization
+  const [confirmAdminDialog, setConfirmAdminDialog] = useState(false);
+  const [userToPromote, setUserToPromote] = useState(null);
+  const [confirmRemoveDialog, setConfirmRemoveDialog] = useState(false);
+  const [userToDemote, setUserToDemote] = useState(null);
 
   const {
     loading: fetchingSettings,
@@ -83,56 +104,105 @@ const SettingsForm = () => {
 
   // Initialize working hours only once when settingsData is first loaded
   useEffect(() => {
-    if (settingsData?.success && settingsData.data && !isInitialized) {
+    fetchDealershipInfo();
+    fetchUsers();
+  }, []);
+
+  // Set working hours when settings data is fetched
+  useEffect(() => {
+    if (settingsData?.success && settingsData.data) {
       const dealership = settingsData.data;
 
+      // Map the working hours
       if (dealership.workingHours.length > 0) {
         const mappedHours = DAYS.map((day) => {
+          // Find matching working hour
           const hourData = dealership.workingHours.find(
             (h) => h.dayOfWeek === day.value
           );
+
+          if (hourData) {
+            return {
+              dayOfWeek: hourData.dayOfWeek,
+              openTime: hourData.openTime,
+              closeTime: hourData.closeTime,
+              isOpen: hourData.isOpen,
+            };
+          }
+
+          // Default values if no working hour is found
           return {
             dayOfWeek: day.value,
-            openTime: hourData?.openTime || "09:00",
-            closeTime: hourData?.closeTime || "18:00",
-            isOpen: hourData?.isOpen ?? day.value !== "SUNDAY",
+            openTime: "09:00",
+            closeTime: "18:00",
+            isOpen: day.value !== "SUNDAY",
           };
         });
+
         setWorkingHours(mappedHours);
-        setIsInitialized(true); // Mark as initialized
       }
     }
-  }, [settingsData, isInitialized]);
+  }, [settingsData]);
 
-  // Fetch initial data
+  // Handle errors
   useEffect(() => {
-    fetchDealershipInfo();
-    fetchUsers();
-  }, [fetchDealershipInfo, fetchUsers]);
+    if (settingsError) {
+      toast.error("Failed to load dealership settings");
+    }
 
-  // Handle save result
+    if (saveError) {
+      toast.error(`Failed to save working hours: ${saveError.message}`);
+    }
+
+    if (usersError) {
+      toast.error("Failed to load users");
+    }
+
+    if (updateRoleError) {
+      toast.error(`Failed to update user role: ${updateRoleError.message}`);
+    }
+  }, [settingsError, saveError, usersError, updateRoleError]);
+
+  // Handle successful operations
   useEffect(() => {
     if (saveResult?.success) {
       toast.success("Working hours saved successfully");
-      setIsInitialized(false); // Allow reinitialization after save
-      fetchDealershipInfo(); // Refresh data
+      fetchDealershipInfo();
     }
-    if (saveError) {
-      toast.error("Failed to save working hours");
-    }
-  }, [saveResult, saveError, fetchDealershipInfo]);
 
-  // Handle changes to working hours (time or checkbox)
+    if (updateRoleResult?.success) {
+      toast.success("User role updated successfully");
+      fetchUsers();
+      setConfirmAdminDialog(false);
+      setConfirmRemoveDialog(false);
+    }
+  }, [saveResult, updateRoleResult]);
+
+  // Handle working hours change
   const handleWorkingHourChange = (index, field, value) => {
-    setWorkingHours((prev) =>
-      prev.map((item, i) =>
-        i === index ? { ...item, [field]: value } : item
-      )
-    );
+    const updatedHours = [...workingHours];
+    updatedHours[index] = {
+      ...updatedHours[index],
+      [field]: value,
+    };
+    setWorkingHours(updatedHours);
   };
 
+  // Save working hours
   const handleSaveHours = async () => {
     await saveHours(workingHours);
+  };
+
+  // Make user admin
+  const handleMakeAdmin = async () => {
+    if (!userToPromote) return;
+    await updateRole(userToPromote.id, "ADMIN");
+  };
+
+  // Remove admin privileges
+  const handleRemoveAdmin = async () => {
+    if (!userToDemote) return;
+    await updateRole(userToDemote.id, "USER");
   };
 
   const filteredUsers = usersData?.success
@@ -147,11 +217,11 @@ const SettingsForm = () => {
     <div className="space-y-6">
       <Tabs defaultValue="hours">
         <TabsList>
-          <TabsTrigger value="hours" className="cursor-pointer">
+          <TabsTrigger value="hours">
             <Clock className="h-4 w-4 mr-2" />
             Working Hours
           </TabsTrigger>
-          <TabsTrigger value="admins" className="cursor-pointer">
+          <TabsTrigger value="admins">
             <Shield className="h-4 w-4 mr-2" />
             Admin Users
           </TabsTrigger>
@@ -165,7 +235,7 @@ const SettingsForm = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {fetchingSettings && !isInitialized ? (
+              {fetchingSettings ? (
                 <div className="py-12 flex justify-center">
                   <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
                 </div>
@@ -276,24 +346,23 @@ const SettingsForm = () => {
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
                 <Input
                   type="search"
-                  placeholder="Search Users"
+                  placeholder="Search users..."
                   className="pl-9 w-full"
                   value={userSearch}
                   onChange={(e) => setUserSearch(e.target.value)}
                 />
               </div>
 
-              {/* {fetchingUsers ? (
+              {fetchingUsers ? (
                 <div className="py-12 flex justify-center">
                   <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
                 </div>
-              ) :  */}
-              {usersData?.success && filteredUsers.length > 0 ? (
-                <div>
+              ) : usersData?.success && filteredUsers.length > 0 ? (
+                <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Name</TableHead>
+                        <TableHead>User</TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>Role</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
@@ -301,26 +370,65 @@ const SettingsForm = () => {
                     </TableHeader>
                     <TableBody>
                       {filteredUsers.map((user) => (
-                        <TableRow key={user.email}>
-                          <TableCell>{user.name || "N/A"}</TableCell>
+                        <TableRow key={user.id}>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                                {user.imageUrl ? (
+                                  <img
+                                    src={user.imageUrl}
+                                    alt={user.name || "User"}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <Users className="h-4 w-4 text-gray-500" />
+                                )}
+                              </div>
+                              <span>{user.name || "Unnamed User"}</span>
+                            </div>
+                          </TableCell>
                           <TableCell>{user.email}</TableCell>
-                          <TableCell>{user.role}</TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                updateRole(user.email, user.role === "ADMIN" ? "USER" : "ADMIN")
+                          <TableCell>
+                            <Badge
+                              className={
+                                user.role === "ADMIN"
+                                  ? "bg-green-800"
+                                  : "bg-gray-800"
                               }
-                              disabled={updatingRole}
-                              className="cursor-pointer"
                             >
-                              {updatingRole ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                `Make ${user.role === "ADMIN" ? "User" : "Admin"}`
-                              )}
-                            </Button>
+                              {user.role}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {user.role === "ADMIN" ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-red-600"
+                                onClick={() => {
+                                  setUserToDemote(user);
+                                  setConfirmRemoveDialog(true);
+                                }}
+                                disabled={updatingRole}
+                              >
+                                <UserX className="h-4 w-4 mr-2" />
+                                Remove Admin
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setUserToPromote(user);
+                                  setConfirmAdminDialog(true);
+                                }}
+                                disabled={updatingRole}
+                                className="cursor-pointer"
+                              >
+                                <Shield className="h-4 w-4 mr-2" />
+                                Make Admin
+                              </Button>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -342,6 +450,85 @@ const SettingsForm = () => {
               )}
             </CardContent>
           </Card>
+
+          {/* Confirm Make Admin Dialog */}
+          <Dialog
+            open={confirmAdminDialog}
+            onOpenChange={setConfirmAdminDialog}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Confirm Admin Privileges</DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to give admin privileges to{" "}
+                  {userToPromote?.name || userToPromote?.email}? Admin users can
+                  manage all aspects of the dealership.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setConfirmAdminDialog(false)}
+                  disabled={updatingRole}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={handleMakeAdmin} disabled={updatingRole}>
+                  {updatingRole ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Confirming...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      Confirm
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Confirm Remove Admin Dialog */}
+          <Dialog
+            open={confirmRemoveDialog}
+            onOpenChange={setConfirmRemoveDialog}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Remove Admin Privileges</DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to remove admin privileges from{" "}
+                  {userToDemote?.name || userToDemote?.email}? They will no
+                  longer be able to access the admin dashboard.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setConfirmRemoveDialog(false)}
+                  disabled={updatingRole}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleRemoveAdmin}
+                  disabled={updatingRole}
+                >
+                  {updatingRole ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Removing...
+                    </>
+                  ) : (
+                    "Remove Admin"
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
       </Tabs>
     </div>

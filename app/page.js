@@ -8,8 +8,10 @@ import HomeSearch from "@/components/HomeSearch";
 import { featuredCars } from "@/lib/data";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { SignedOut } from "@clerk/nextjs";
+import { getFeaturedCars } from "@/actions/home";
 
-export default function Home() {
+export default async function Home() {
+  const featuredCars = await getFeaturedCars()
   return (
     <div className="flex flex-col pt-20">
       <section className="relative py-16 md:py-28 dotted-background">

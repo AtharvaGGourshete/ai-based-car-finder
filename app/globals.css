@@ -217,6 +217,15 @@
   }
 }
 
+@layer utilities {
+  .gradient {
+    @apply bg-gradient-to-br from-blue-500 to-green-500;
+  }
+  .gradient-title {
+    @apply gradient font-extrabold tracking-tighter pr-2 pb-2 text-transparent bg-clip-text;
+  }
+}
+
 .dotted-background {
   background-color: #16223c;
   background-image: radial-gradient(
