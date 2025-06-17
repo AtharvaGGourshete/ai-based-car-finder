@@ -11,18 +11,16 @@ export const metadata = {
 const CarsPage = async () => {
   const filtersData = await getCarFilters();
   return (
-    <div className="container mx-auto px-4 py-12">
-      <div>
-        <h1 className="text-6xl mb-4 font-bold bg-gradient-to-br from-blue-500 to-green-500 bg-clip-text text-transparent">Browse Cars</h1>
-      </div>
+    <div className="container mx-auto px-4">
+      <h1 className="text-6xl mb-4 font-bold">Browse Cars</h1>
 
       <div className="flex flex-col lg:flex-row gap-8">
-        
+        {/* Filters Section */}
         <div className="w-full lg:w-80 flex-shrink-0">
           <CarFilters filters={filtersData.data} />
         </div>
 
-        
+        {/* Car Listings */}
         <div className="flex-1">
           <CarListings />
         </div>

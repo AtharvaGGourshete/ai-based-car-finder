@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Card, CardContent } from "./ui/card";
 import Link from "next/link";
 import Image from "next/image";
@@ -8,11 +8,107 @@ import { Heart, Car as CarIcon, Loader2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@clerk/nextjs"; // Assuming you're using a toast hook
+import { toggleSavedCar } from "@/actions/car-listing";
+import useFetch from "@/hooks/use-fetch";
+import { toast } from "sonner";
 
 const CarCard = ({ car }) => {
+  const { isSignedIn } = useAuth();
   const [isSaved, setIsSaved] = useState(car.wishlisted);
   const router = useRouter();
-  const handleToggleSave = async (e) => {};
+
+  const {
+    loading: isToggling,
+    fn: toggleSavedCarFn,
+    data: toggleResult,
+    error: toggleError,
+  } = useFetch(toggleSavedCar);
+
+  // Handle toggle result
+  useEffect(() => {
+    console.log("toggleResult:", toggleResult);
+    if (toggleResult?.success) {
+      setIsSaved(toggleResult.saved);
+      toast({
+        title: "Success",
+        description: toggleResult.message,
+      });
+    }
+  }, [toggleResult]);
+
+  useEffect(() => {
+    console.log("toggleError:", toggleError);
+    if (toggleError) {
+      toast({
+        title: "Error",
+        description: "Failed to update favorites",
+        variant: "destructive",
+      });
+    }
+  }, [toggleError]);
+  useEffect(() => {
+    if (toggleResult?.success) {
+      setIsSaved(toggleResult.saved);
+      toast({
+        title: "Success",
+        description: toggleResult.message,
+      });
+    }
+  }, [toggleResult]);
+
+  // Handle toggle errors
+  useEffect(() => {
+    if (toggleError) {
+      toast({
+        title: "Error",
+        description: "Failed to update favorites",
+        variant: "destructive",
+      });
+    }
+  }, [toggleError]);
+
+  const handleToggleSave = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!isSignedIn) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to save cars",
+        variant: "destructive",
+      });
+      router.push("/sign-in");
+      return;
+    }
+
+    if (isToggling) return;
+
+    // Optimistic update
+    const previousIsSaved = isSaved;
+    setIsSaved(!isSaved);
+
+    try {
+      const result = await toggleSavedCarFn(car.id);
+      if (!result?.success) {
+        // Revert optimistic update on failure
+        setIsSaved(previousIsSaved);
+        toast({
+          title: "Error",
+          description: result?.message || "Failed to update favorites",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      // Revert optimistic update on error
+      setIsSaved(previousIsSaved);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <Card className="overflow-hidden hover:shadow-lg transition group cursor-pointer">
@@ -40,8 +136,13 @@ const CarCard = ({ car }) => {
               : "text-gray-600 hover:text-gray-900"
           }`}
           onClick={handleToggleSave}
+          disabled={isToggling}
         >
-          <Heart className={isSaved ? "fill-current" : ""} size={20} />
+          {isToggling ? (
+            <Loader2 className="animate-spin" size={20} />
+          ) : (
+            <Heart className={isSaved ? "fill-current" : ""} size={20} />
+          )}
         </Button>
       </div>
 

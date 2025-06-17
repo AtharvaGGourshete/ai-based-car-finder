@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import CarFilterControls from "./filter-controls";
+import { Badge } from "@/components/ui/badge";
 
 const CarFilters = ({ filters }) => {
   const router = useRouter();
