@@ -178,7 +178,7 @@ const CarCard = ({ car }) => {
 
         <div className="flex justify-between">
           <Button
-            className="flex-1"
+            className="flex-1 cursor-pointer"
             onClick={() => {
               router.push(`/cars/${car.id}`);
             }}
