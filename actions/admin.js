@@ -21,9 +21,6 @@ export async function getAdmin() {
   return { authorized: true, user };
 }
 
-/**
- * Get all test drives for admin with filters
- */
 export async function getAdminTestDrives({ search = "", status = "" }) {
   try {
     const { userId } = await auth();
@@ -115,9 +112,6 @@ export async function getAdminTestDrives({ search = "", status = "" }) {
   }
 }
 
-/**
- * Update test drive status
- */
 export async function updateTestDriveStatus(bookingId, newStatus) {
   try {
     const { userId } = await auth();
