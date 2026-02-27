@@ -15,7 +15,7 @@ import {
   Star,
   DollarSign,
 } from "lucide-react";
-export const dynamic = "force-dynamic";
+
 export function Dashboard({ initialData }) {
   const [activeTab, setActiveTab] = useState("overview");
 

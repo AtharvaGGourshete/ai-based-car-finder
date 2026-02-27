@@ -1,5 +1,5 @@
+export const dynamic = "force-dynamic";
 import { notFound } from "next/navigation";
-
 import { getAdmin } from "@/actions/admin";
 import Header from "@/components/Header";
 import { Sidebar } from "./_components/sidebar";
