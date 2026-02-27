@@ -40,7 +40,6 @@ import { bookTestDrive } from "@/actions/test-drive";
 import { toast } from "sonner";
 import useFetch from "@/hooks/use-fetch";
 
-// Define Zod schema for form validation
 const testDriveSchema = z.object({
   date: z.date({
     required_error: "Please select a date for your test drive",
@@ -57,14 +56,13 @@ export default function TestDriveForm({ car, testDriveInfo }) {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [bookingDetails, setBookingDetails] = useState(null);
 
-  // Initialize react-hook-form with zod resolver
   const {
     control,
     handleSubmit,
     watch,
     setValue,
     reset,
-    formState: { errors, isValid },
+    formState: { errors },
   } = useForm({
     resolver: zodResolver(testDriveSchema),
     defaultValues: {
@@ -74,14 +72,10 @@ export default function TestDriveForm({ car, testDriveInfo }) {
     },
   });
 
-  // Get dealership and booking information
   const dealership = testDriveInfo?.dealership;
   const existingBookings = testDriveInfo?.existingBookings || [];
-
-  // Watch date field to update available time slots
   const selectedDate = watch("date");
 
-  // Custom hooks for API calls
   const {
     loading: bookingInProgress,
     fn: bookTestDriveFn,
@@ -104,8 +98,6 @@ export default function TestDriveForm({ car, testDriveInfo }) {
         notes: bookingResult?.data?.notes,
       });
       setShowConfirmation(true);
-
-      // Reset form
       reset();
     }
   }, [bookingResult, reset]);
@@ -125,7 +117,6 @@ export default function TestDriveForm({ car, testDriveInfo }) {
 
     const selectedDayOfWeek = format(selectedDate, "EEEE").toUpperCase();
 
-    // Find working hours for the selected day
     const daySchedule = dealership.workingHours.find(
       (day) => day.dayOfWeek === selectedDayOfWeek
     );
@@ -135,17 +126,14 @@ export default function TestDriveForm({ car, testDriveInfo }) {
       return;
     }
 
-    // Parse opening and closing hours
     const openHour = parseInt(daySchedule.openTime.split(":")[0]);
     const closeHour = parseInt(daySchedule.closeTime.split(":")[0]);
 
-    // Generate time slots (every hour)
     const slots = [];
     for (let hour = openHour; hour < closeHour; hour++) {
       const startTime = `${hour.toString().padStart(2, "0")}:00`;
       const endTime = `${(hour + 1).toString().padStart(2, "0")}:00`;
 
-      // Check if this slot is already booked
       const isBooked = existingBookings.some((booking) => {
         const bookingDate = booking.date;
         return (
@@ -165,31 +153,28 @@ export default function TestDriveForm({ car, testDriveInfo }) {
     }
 
     setAvailableTimeSlots(slots);
-
-    // Clear time slot selection when date changes
     setValue("timeSlot", "");
-  }, [selectedDate]);
+  }, [selectedDate, dealership, existingBookings]);
 
-  // Create a function to determine which days should be disabled
+  // Fixed: properly disable past dates without blocking today
   const isDayDisabled = (day) => {
-    // Disable past dates
-    if (day < new Date()) {
-      return true;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (day < today) return true;
+
+    if (!dealership?.workingHours || dealership.workingHours.length === 0) {
+      return false; // don't block all days if workingHours not loaded
     }
 
-    // Get day of week
     const dayOfWeek = format(day, "EEEE").toUpperCase();
-
-    // Find working hours for the day
-    const daySchedule = dealership?.workingHours?.find(
+    const daySchedule = dealership.workingHours.find(
       (schedule) => schedule.dayOfWeek === dayOfWeek
     );
 
-    // Disable if dealership is closed on this day
     return !daySchedule || !daySchedule.isOpen;
   };
 
-  // Submit handler
   const onSubmit = async (data) => {
     const selectedSlot = availableTimeSlots.find(
       (slot) => slot.id === data.timeSlot
@@ -209,7 +194,6 @@ export default function TestDriveForm({ car, testDriveInfo }) {
     });
   };
 
-  // Close confirmation handler
   const handleCloseConfirmation = () => {
     setShowConfirmation(false);
     router.push(`/cars/${car.id}`);
@@ -300,7 +284,9 @@ export default function TestDriveForm({ car, testDriveInfo }) {
       <div className="md:col-span-2">
         <Card>
           <CardContent className="p-6">
-            <h2 className="text-xl font-bold mb-6">Schedule Your Test Drive</h2>
+            <h2 className="text-xl font-bold mb-6">
+              Schedule Your Test Drive
+            </h2>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               {/* Date Selection */}
