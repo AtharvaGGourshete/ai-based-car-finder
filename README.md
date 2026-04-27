@@ -31,7 +31,12 @@ Vehiql is a full-stack car marketplace built with Next.js. It helps users discov
 - Arcjet key
 - Groq API key
 
-### 2. Install dependencies
+### 2. Clone the project and install dependencies
+
+```bash
+git clone https://github.com/AtharvaGGourshete/ai-based-car-finder.git
+cd ai-based-car-finder
+```
 
 ```bash
 npm install
