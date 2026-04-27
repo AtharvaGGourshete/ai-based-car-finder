@@ -2,8 +2,6 @@ import arcjet, { createMiddleware, detectBot, shield } from "@arcjet/next";
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-export const runtime = "nodejs"; // ← add this line
-
 const isProtectedRoute = createRouteMatcher([
   "/admin(.*)",
   "/saved-cars(.*)",

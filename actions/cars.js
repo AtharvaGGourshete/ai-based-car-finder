@@ -133,6 +133,7 @@ export async function addCar({ carData, images }) {
     });
 
     if (!user) throw new Error("User not found");
+    if (user.role !== "ADMIN") throw new Error("Unauthorized: Admin access required");
 
     // Create a unique folder name for this car's images
     const carId = uuidv4();
@@ -261,6 +262,13 @@ export async function deleteCar(id) {
   try {
     const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
+    
+    const user = await db.user.findUnique({
+      where: { clerkUserId: userId },
+    });
+    if (!user || user.role !== "ADMIN") {
+      throw new Error("Unauthorized: Admin access required");
+    }
 
     // First, fetch the car to get its images
     const car = await db.car.findUnique({
@@ -282,7 +290,7 @@ export async function deleteCar(id) {
 
     // Delete the images from Supabase storage
     try {
-      const cookieStore = cookies();
+      const cookieStore = await cookies();
       const supabase = createClient(cookieStore);
 
       // Extract file paths from image URLs
@@ -330,6 +338,13 @@ export async function updateCarStatus(id, { status, featured }) {
   try {
     const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
+    
+    const user = await db.user.findUnique({
+      where: { clerkUserId: userId },
+    });
+    if (!user || user.role !== "ADMIN") {
+      throw new Error("Unauthorized: Admin access required");
+    }
 
     const updateData = {};
 

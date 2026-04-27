@@ -117,21 +117,21 @@ export async function saveWorkingHours(workingHours) {
             throw new Error("Dealership information not found")
         }
 
-        await db.workingHour.deleteMany({
-            where: {dealershipId: dealership.id}
-        })
+        await db.$transaction(async (tx) => {
+            await tx.workingHour.deleteMany({
+                where: { dealershipId: dealership.id },
+            });
 
-        for(const hour of workingHours){
-            await db.workingHour.create({
-                data: {
+            await tx.workingHour.createMany({
+                data: workingHours.map((hour) => ({
                     dayOfWeek: hour.dayOfWeek,
                     openTime: hour.openTime,
                     closeTime: hour.closeTime,
                     isOpen: hour.isOpen,
                     dealershipId: dealership.id,
-                },
-            })
-        }
+                })),
+            });
+        });
 
         revalidatePath("/admin/settings");
         revalidatePath("/"); 
@@ -174,7 +174,7 @@ export async function getUsers() {
   }
 }
 
-export async function updateUserRole(userId, role) {
+export async function updateUserRole(targetUserId, role) {
     try {
         const { userId: adminId } = await auth();
         if (!adminId) throw new Error("Unauthorized");
@@ -187,8 +187,12 @@ export async function updateUserRole(userId, role) {
             throw new Error("Unauthorized: Admin access required");
         }
 
+        if (!["USER", "ADMIN"].includes(role)) {
+            throw new Error("Invalid role");
+        }
+
         await db.user.update({
-            where: { id: user.id },
+            where: { id: targetUserId },
             data: { role },
         })
 

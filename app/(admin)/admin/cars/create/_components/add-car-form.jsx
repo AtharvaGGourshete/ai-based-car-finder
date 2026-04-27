@@ -106,7 +106,7 @@ export const AddCarForm = () => {
     const file = acceptedFiles[0];
 
     if (file) {
-      if (file > 5 * 1024 * 1024) {
+      if (file.size > 5 * 1024 * 1024) {
         toast.error("Image size must be less that 5MB");
         return;
       }

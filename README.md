@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Vehiql - AI Based Car Finder
 
-## Getting Started
+Vehiql is a full-stack car marketplace built with Next.js. It helps users discover cars using traditional filters and AI image-based search, save favorites, and schedule test drives. It also includes an admin panel for managing inventory, bookings, dealership settings, and user roles.
 
-First, run the development server:
+## Objectives
+
+- Lets users browse available cars with filters (make, body type, fuel type, transmission, price range, sort, pagination).
+- Supports AI-assisted image search from the home page (uploads a car image and extracts likely make/body type/color).
+- Allows authenticated users to save/unsave cars and manage their reservations.
+- Lets users book test drives with dealership working-hours based slot availability.
+- Provides admins with a dashboard, car management, booking status management, and dealership/user settings.
+
+## Core Features
+
+- Authentication and route protection via Clerk.
+- Role-based admin area (`USER` / `ADMIN`) with server-side authorization checks.
+- Car inventory and booking persistence using Prisma + PostgreSQL.
+- Car image storage using Supabase Storage (`car-images` bucket).
+- Rate-limiting and bot/shield protection with Arcjet.
+- Server Actions for data operations (listing, booking, admin updates).
+
+## Local Setup
+
+### 1. Prerequisites
+
+- Node.js 20+
+- npm
+- PostgreSQL database
+- Clerk project
+- Supabase project
+- Arcjet key
+- Groq API key
+
+### 2. Install dependencies
+
+```bash
+npm install
+```
+
+### 3. Run database migrations
+
+```bash
+npx prisma migrate dev
+```
+
+Optional (inspect DB):
+
+```bash
+npx prisma studio
+```
+
+### 4. Start the development server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## First-Run Checklist
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Sign up through Clerk from the app.
+2. Your user row is auto-created in the database on first authenticated visit.
+3. If you need admin access, promote your user in Postgres:
 
-## Learn More
+```sql
+UPDATE "User"
+SET "role" = 'ADMIN'
+WHERE "email" = 'your-email@example.com';
+```
 
-To learn more about Next.js, take a look at the following resources:
+4. Visit `/admin` after promotion.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Available Scripts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `npm run dev` - start local dev server with Turbopack.
+- `npm run build` - create production build.
+- `npm run start` - run production build.
+- `npm run lint` - run ESLint.
 
-## Deploy on Vercel
+## Project Structure (High Level)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `app/` - Next.js App Router pages and layouts.
+- `actions/` - Server Actions for cars, bookings, admin, settings, home search.
+- `components/` - Reusable UI components.
+- `lib/` - Prisma client, auth/user helpers, Arcjet and Supabase setup.
+- `prisma/` - Prisma schema and migration files.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
